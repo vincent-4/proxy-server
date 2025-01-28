@@ -1,6 +1,6 @@
 module proxy-server
 
-go 1.19
+go 1.23.5
 
 require (
 	github.com/charmbracelet/bubbles v0.20.0

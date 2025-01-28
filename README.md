@@ -67,7 +67,7 @@ Built with these amazing libraries:
 ## Development
 
 ### Prerequisites
-- Go 1.19 or later
+- Go 1.23.5 or later
 - Terminal with true color support (recommended)
 
 ### Building from Source
