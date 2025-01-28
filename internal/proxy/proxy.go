@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// List of hop-by-hop headers to be removed
+
 var hopHeaders = []string{
 	"Connection",
 	"Keep-Alive",
@@ -55,37 +55,37 @@ type ProxyServer struct {
 	logger         *log.Logger
 	client         *http.Client
 	breakers       map[string]*circuitBreaker
-	authAttempts   map[string]*authAttempt // IP -> attempts
+	authAttempts   map[string]*authAttempt 
 }
 
-// Error variables for common errors
+
 var (
 	ErrServerRunning    = fmt.Errorf("server already running")
 	ErrServerNotRunning = fmt.Errorf("server not running")
 	ErrStartTimeout     = fmt.Errorf("timeout waiting for server to start")
 )
 
-// Configuration constants
+
 const (
-	maxBodySize         = 10 * 1024 * 1024 // 10MB
+	maxBodySize         = 10 * 1024 * 1024 
 	maxRetries          = 3
 	retryDelay          = 100 * time.Millisecond
 	maxFailures         = 5
 	circuitResetTimeout = 30 * time.Second
-	maxAuthAttempts     = 5               // Max auth attempts per window
-	authWindowDuration  = 5 * time.Minute // Window duration for auth attempts
+	maxAuthAttempts     = 5               
+	authWindowDuration  = 5 * time.Minute 
 )
 
-// Config holds the configuration for ProxyServer
+
 type Config struct {
 	Port     string
 	Username string
 	Password string
 }
 
-// NewProxyServer creates a new proxy server with the given configuration
+
 func NewProxyServer(cfg Config) *ProxyServer {
-	// Create a log file
+	
 	logFile, err := os.OpenFile("proxy_debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		panic(fmt.Sprintf("Failed to open log file: %v", err))
@@ -93,7 +93,7 @@ func NewProxyServer(cfg Config) *ProxyServer {
 
 	logger := log.New(logFile, "[PROXY] ", log.LstdFlags|log.Lshortfile)
 
-	// Configure transport with connection pooling
+	
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		DialContext: (&net.Dialer{
@@ -135,9 +135,9 @@ func (s *ProxyServer) Start() error {
 		return ErrServerRunning
 	}
 
-	// Create a new channel for this start attempt
+	
 	s.startupDone = make(chan struct{})
-	startupDone := s.startupDone // Keep a reference to this channel
+	startupDone := s.startupDone 
 
 	s.server = &http.Server{
 		Addr:    ":" + s.port,
@@ -146,7 +146,7 @@ func (s *ProxyServer) Start() error {
 	s.isRunning = true
 	s.mu.Unlock()
 
-	// Try to start listening on the port
+	
 	ln, err := net.Listen("tcp", s.server.Addr)
 	if err != nil {
 		s.mu.Lock()
@@ -155,10 +155,10 @@ func (s *ProxyServer) Start() error {
 		return fmt.Errorf("failed to listen on port %s: %v", s.port, err)
 	}
 
-	// Signal that we're ready to accept connections
+	
 	close(startupDone)
 
-	// Start serving
+	
 	err = s.server.Serve(ln)
 	if err != nil && err != http.ErrServerClosed {
 		s.mu.Lock()
@@ -204,7 +204,7 @@ func (s *ProxyServer) GetMetrics() (int64, map[string]*SiteMetrics) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Create a copy of the site metrics map
+	
 	metrics := make(map[string]*SiteMetrics)
 	for k, v := range s.siteMetrics {
 		metrics[k] = &SiteMetrics{
@@ -250,38 +250,38 @@ func (s *ProxyServer) checkAuthRate(ip string) bool {
 		return true
 	}
 
-	// Reset if window has expired
+	
 	if now.Sub(attempt.lastAttempt) > authWindowDuration {
 		attempt.attempts = 1
 		attempt.lastAttempt = now
 		return true
 	}
 
-	// Check if too many attempts
+	
 	if attempt.attempts >= maxAuthAttempts {
 		s.logger.Printf("Rate limit exceeded for IP %s", ip)
 		return false
 	}
 
-	// Update attempt count
+	
 	attempt.attempts++
 	attempt.lastAttempt = now
 	return true
 }
 
 func (s *ProxyServer) authenticate(r *http.Request) bool {
-	// Get client IP
+	
 	ip := r.RemoteAddr
 	if idx := strings.LastIndex(ip, ":"); idx != -1 {
 		ip = ip[:idx]
 	}
 
-	// Check rate limit
+	
 	if !s.checkAuthRate(ip) {
 		return false
 	}
 
-	// Check if using HTTPS
+	
 	if r.TLS == nil {
 		s.logger.Printf("Warning: Authentication over non-HTTPS connection from %s", ip)
 	}
@@ -312,13 +312,13 @@ func (s *ProxyServer) authenticate(r *http.Request) bool {
 
 func shouldRetry(err error, statusCode int) bool {
 	if err != nil {
-		// Retry on network errors
+		
 		if netErr, ok := err.(net.Error); ok {
 			return netErr.Temporary()
 		}
 		return false
 	}
-	// Retry on 5xx errors except 501 Not Implemented
+	
 	return statusCode >= 500 && statusCode != 501
 }
 
@@ -341,7 +341,7 @@ func (cb *circuitBreaker) isOpen() bool {
 
 	if cb.failures >= maxFailures {
 		if time.Since(cb.lastFailure) > circuitResetTimeout {
-			// Circuit has cooled down, allow one request through
+			
 			cb.mu.RUnlock()
 			cb.mu.Lock()
 			cb.failures = 0
@@ -384,10 +384,10 @@ func (s *ProxyServer) doWithRetry(req *http.Request) (*http.Response, error) {
 			time.Sleep(retryDelay * time.Duration(attempt))
 		}
 
-		// Create a new request for each attempt
+		
 		retryReq := req.Clone(req.Context())
 		if req.Body != nil {
-			// We can't reuse the body, so we need to skip retries
+			
 			s.logger.Printf("Request has body, skipping retries")
 			resp, err = s.client.Do(req)
 			if err != nil {
@@ -415,10 +415,10 @@ func (s *ProxyServer) doWithRetry(req *http.Request) (*http.Response, error) {
 		resp.Body.Close()
 	}
 
-	// Record failure after max retries
+	
 	cb.recordFailure()
 
-	// Return the last response or error
+	
 	if resp != nil {
 		return resp, nil
 	}
@@ -426,37 +426,34 @@ func (s *ProxyServer) doWithRetry(req *http.Request) (*http.Response, error) {
 }
 
 func (s *ProxyServer) handleHTTP(w http.ResponseWriter, r *http.Request) {
-	// Create a new request to forward
+	
 	outReq, err := http.NewRequest(r.Method, r.URL.String(), r.Body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Add body size limit if Content-Length is set
 	if r.ContentLength > maxBodySize {
 		http.Error(w, "Request body too large", http.StatusRequestEntityTooLarge)
 		return
 	}
 
-	// If no Content-Length, use LimitReader to enforce max size
+	
 	if r.ContentLength == -1 {
 		r.Body = io.NopCloser(io.LimitReader(r.Body, maxBodySize))
 	}
 
-	// Copy headers
+	
 	for key, values := range r.Header {
 		for _, value := range values {
 			outReq.Header.Add(key, value)
 		}
 	}
 
-	// Remove hop-by-hop headers
 	for _, h := range hopHeaders {
 		outReq.Header.Del(h)
 	}
 
-	// Make the request with retry
 	resp, err := s.doWithRetry(outReq)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -464,13 +461,11 @@ func (s *ProxyServer) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
-	// Check response size
 	if resp.ContentLength > maxBodySize {
 		http.Error(w, "Response body too large", http.StatusBadGateway)
 		return
 	}
 
-	// Copy response headers
 	for key, values := range resp.Header {
 		for _, value := range values {
 			w.Header().Add(key, value)
@@ -478,14 +473,12 @@ func (s *ProxyServer) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 
-	// Copy response body with size limit
 	written, err := io.Copy(w, io.LimitReader(resp.Body, maxBodySize))
 	if err != nil {
 		s.logger.Printf("Error copying response: %v", err)
 		return
 	}
 
-	// Update the visit with actual data received
 	s.trackVisit(r.Host, written)
 }
 
@@ -503,7 +496,6 @@ func (s *ProxyServer) handleHTTPS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
-	// Connect to the target host with timeout
 	targetConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
 	if err != nil {
 		s.logger.Printf("Failed to connect to target: %v", err)
@@ -511,7 +503,6 @@ func (s *ProxyServer) handleHTTPS(w http.ResponseWriter, r *http.Request) {
 	}
 	defer targetConn.Close()
 
-	// Set read/write timeouts on both connections
 	if tcpConn, ok := clientConn.(*net.TCPConn); ok {
 		tcpConn.SetKeepAlive(true)
 		tcpConn.SetKeepAlivePeriod(30 * time.Second)
@@ -527,13 +518,10 @@ func (s *ProxyServer) handleHTTPS(w http.ResponseWriter, r *http.Request) {
 
 	clientConn.Write([]byte("HTTP/1.0 200 Connection established\r\n\r\n"))
 
-	// Create channels to collect bytes written in both directions
 	bytesWrittenChan := make(chan int64, 2)
 	doneChan := make(chan bool, 2)
 
-	// Start bidirectional copy with timeout
 	go func() {
-		// Copy from client to target
 		written, err := io.Copy(targetConn, clientConn)
 		if err != nil {
 			s.logger.Printf("Error copying to target: %v", err)
@@ -545,7 +533,6 @@ func (s *ProxyServer) handleHTTPS(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	go func() {
-		// Copy from target to client
 		written, err := io.Copy(clientConn, targetConn)
 		if err != nil {
 			s.logger.Printf("Error copying to client: %v", err)
@@ -556,7 +543,6 @@ func (s *ProxyServer) handleHTTPS(w http.ResponseWriter, r *http.Request) {
 		doneChan <- true
 	}()
 
-	// Wait for both copies to complete or timeout
 	timeoutChan := time.After(5 * time.Minute)
 	var totalBytes int64
 
@@ -587,7 +573,6 @@ func (s *ProxyServer) trackVisit(host string, bytes int64) {
 		s.siteMetrics[host] = metrics
 	}
 
-	// Only increment visits if we actually received data
 	if bytes > 0 {
 		metrics.Visits++
 	}

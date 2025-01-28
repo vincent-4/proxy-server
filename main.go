@@ -35,7 +35,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 }
 
 func init() {
-	// Create a log file for the TUI
+	
 	logFile, err := os.OpenFile("tui_debug.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to open TUI log file: %v\n", err)
@@ -84,7 +84,7 @@ func initialModel() model {
 		table.WithHeight(10),
 	)
 
-	// Set table styles
+	
 	styles := table.DefaultStyles()
 	styles.Header = styles.Header.
 		BorderStyle(lipgloss.NormalBorder()).
@@ -103,7 +103,7 @@ func initialModel() model {
 
 	t.SetStyles(styles)
 
-	// Create proxy server with config
+	
 	proxyConfig := proxy.Config{
 		Port:     *port,
 		Username: *username,
@@ -161,7 +161,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else {
 				logger.Printf("Starting proxy server")
-				// Start the server in a goroutine
+				
 				errChan := make(chan error, 1)
 				go func() {
 					if err := m.proxy.Start(); err != nil {
@@ -174,7 +174,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					close(errChan)
 				}()
 
-				// Wait for either startup completion or timeout
+				
 				select {
 				case err := <-errChan:
 					if err != nil {
@@ -182,7 +182,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						logger.Printf("Error starting proxy: %v", err)
 					}
 				case <-time.After(100 * time.Millisecond):
-					// Give the server a moment to start listening
+					
 					if err := m.proxy.WaitForStart(1 * time.Second); err != nil {
 						if err == proxy.ErrStartTimeout {
 							m.err = fmt.Errorf("proxy server timed out while starting")
@@ -210,7 +210,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.bandwidthUsage = bandwidthUsage
 			logger.Printf("Got metrics - Bandwidth: %d bytes, Metrics: %v", bandwidthUsage, metrics)
 
-			// Convert metrics map to sorted slice
+			
 			type siteMetrics struct {
 				url       string
 				visits    int
@@ -225,12 +225,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				})
 			}
 
-			// Sort by visits in descending order
+			
 			sort.Slice(metricSlice, func(i, j int) bool {
 				return metricSlice[i].visits > metricSlice[j].visits
 			})
 
-			// Update table rows with formatted data size
+			
 			rows := make([]table.Row, 0, len(metricSlice))
 			for _, m := range metricSlice {
 				dataSize := formatBytes(m.dataBytes)
@@ -243,7 +243,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			logger.Printf("Updating table with %d rows: %v", len(rows), rows)
 			m.table.SetRows(rows)
 
-			// Force a repaint
+			
 			return m, tea.Batch(
 				m.spinner.Tick,
 				tea.Every(500*time.Millisecond, func(t time.Time) tea.Msg {
@@ -255,7 +255,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		}
 
-		// Always return both spinner and tick commands
+		
 		return m, tea.Batch(
 			m.spinner.Tick,
 			tea.Every(500*time.Millisecond, func(t time.Time) tea.Msg {
@@ -269,7 +269,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Handle table updates
+	
 	m.table, cmd = m.table.Update(msg)
 	return m, cmd
 }
@@ -281,37 +281,37 @@ func (m model) View() string {
 
 	var b strings.Builder
 
-	// Title
+	
 	b.WriteString(titleStyle.Render("Proxy Server Monitor"))
 
-	// Status
+	
 	status := fmt.Sprintf("\n%s Proxy Server Status: %s\n",
 		m.spinner.View(),
 		statusStyle.Render(getStatus(m.proxy)))
 	b.WriteString(status)
 
-	// Bandwidth
+	
 	bandwidthUsage := float64(m.bandwidthUsage) / (1024 * 1024)
 	metrics := fmt.Sprintf("\nBandwidth Usage: %.2f MB\n", bandwidthUsage)
 	b.WriteString(metrics)
 
-	// Table
+	
 	b.WriteString("\nTop Sites:\n")
 	tableStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.NormalBorder()).
 		BorderForeground(lipgloss.Color("240")).
 		Padding(0, 1)
 
-	// Get table content
+	
 	tableContent := m.table.View()
 	if tableContent == "" {
 		tableContent = "No sites visited yet"
 	}
 
-	// Apply style to table
+	
 	b.WriteString(tableStyle.Render(tableContent))
 
-	// Controls
+	
 	controls := "\nPress 's' to start/stop the proxy server • 'tab' to focus/blur table • 'q' to quit\n"
 	b.WriteString(controls)
 
@@ -325,7 +325,6 @@ func getStatus(p *proxy.ProxyServer) string {
 	return "Stopped"
 }
 
-// formatBytes converts bytes to human-readable format
 func formatBytes(bytes int64) string {
 	const unit = 1024
 	if bytes < unit {
@@ -342,7 +341,6 @@ func formatBytes(bytes int64) string {
 func main() {
 	flag.Parse()
 
-	// Setup cleanup
 	cleanup := func() {
 		logger.Printf("Cleaning up resources...")
 		if err := logger.Writer().(*os.File).Close(); err != nil {
@@ -351,7 +349,6 @@ func main() {
 	}
 	defer cleanup()
 
-	// Handle interrupt
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {

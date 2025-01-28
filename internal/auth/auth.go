@@ -8,29 +8,29 @@ import (
 	"strings"
 )
 
-// ErrInvalidAuth represents an authentication error
+
 var ErrInvalidAuth = fmt.Errorf("invalid authentication")
 
-// Config holds authentication configuration
+
 type Config struct {
 	Username string
 	Password string
 }
 
-// Authenticator handles basic authentication for the proxy server
+
 type Authenticator struct {
 	config Config
 }
 
-// New creates a new Authenticator instance
+
 func New(cfg Config) *Authenticator {
 	return &Authenticator{
 		config: cfg,
 	}
 }
 
-// Authenticate checks if the request has valid basic auth credentials.
-// It returns an error if authentication fails.
+
+
 func (a *Authenticator) Authenticate(r *http.Request) error {
 	auth := r.Header.Get("Proxy-Authorization")
 	if auth == "" {
@@ -54,7 +54,7 @@ func (a *Authenticator) Authenticate(r *http.Request) error {
 
 	username, password := credentials[0], credentials[1]
 
-	// Use constant time comparison to prevent timing attacks
+	
 	usernameMatch := subtle.ConstantTimeCompare([]byte(username), []byte(a.config.Username)) == 1
 	passwordMatch := subtle.ConstantTimeCompare([]byte(password), []byte(a.config.Password)) == 1
 
@@ -65,7 +65,7 @@ func (a *Authenticator) Authenticate(r *http.Request) error {
 	return nil
 }
 
-// RequireAuth adds the Proxy-Authenticate header to the response
+
 func (a *Authenticator) RequireAuth(w http.ResponseWriter) {
 	w.Header().Set("Proxy-Authenticate", "Basic realm=\"Proxy\"")
 	http.Error(w, "Proxy authentication required", http.StatusProxyAuthRequired)
