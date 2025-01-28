@@ -1,6 +1,6 @@
 # Terminal UI HTTP/HTTPS Proxy Server
 
-An interactive proxy server with a beautiful Terminal User Interface (TUI) built using [Bubbletea][bubbletea]. Monitor your proxy traffic in real-time with a clean, responsive interface.
+An interactive proxy server with a beautiful Terminal User Interface (TUI) built using [Bubbletea][bubbletea]. Monitor your proxy traffic in real-time with a clean, responsive interface. Hit play below to see a quick demo!
 
 https://github.com/user-attachments/assets/a0f2b319-ddae-43e9-a6b0-47a25f18bc72
 
